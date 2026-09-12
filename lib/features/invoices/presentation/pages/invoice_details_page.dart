@@ -25,6 +25,7 @@ class _InvoiceDetailsPageState extends State<InvoiceDetailsPage> {
   final List<TextEditingController> _qtyControllers = [];
 
   bool get _isEditable => _currentInvoice.status.toUpperCase() == 'DRAFT';
+  bool get _isApproved => _currentInvoice.status.toUpperCase() == 'APPROVED';
 
   @override
   void initState() {
@@ -138,38 +139,61 @@ class _InvoiceDetailsPageState extends State<InvoiceDetailsPage> {
   }
 
   void _changeStatus(String newStatus) {
+    // تحديد ما إذا كان الإجراء حذف نهائي (DRAFT) أو إلغاء ناعم (APPROVED)
+    final bool isDraftDelete =
+        newStatus == 'CANCELLED' && _currentInvoice.status.toUpperCase() == 'DRAFT';
+
+    String title;
+    String message;
+    Color confirmColor;
+
+    if (newStatus == 'APPROVED') {
+      title = 'اعتماد الفاتورة';
+      message = 'هل أنت تأكد من اعتماد هذه الفاتورة؟ لن تتمكن من التعديل عليها لاحقاً.';
+      confirmColor = Colors.green;
+    } else if (isDraftDelete) {
+      title = 'حذف الفاتورة';
+      message = 'هل أنت تأكد من حذف هذه الفاتورة نهائياً؟\nسيتم حذفها من التطبيق وقاعدة البيانات ولا يمكن استرجاعها.';
+      confirmColor = Colors.red;
+    } else {
+      title = 'إلغاء الفاتورة المعتمدة';
+      message = 'هل أنت تأكد من إلغاء هذه الفاتورة؟\nسيتم إخفاؤها من القائمة مع الاحتفاظ بها في قاعدة البيانات.';
+      confirmColor = Colors.red;
+    }
+
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: Text(
-          newStatus == 'APPROVED' ? 'اعتماد الفاتورة' : 'إلغاء الفاتورة',
-        ),
-        content: Text(
-          newStatus == 'APPROVED'
-              ? 'هل أنت تأكد من اعتماد هذه الفاتورة؟ لن تتمكن من التعديل عليها لاحقاً.'
-              : 'هل أنت تأكد من إلغاء هذه الفاتورة؟',
-        ),
+        title: Text(title),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('إلغاء'),
+            child: const Text('تراجع'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: newStatus == 'APPROVED'
-                  ? Colors.green
-                  : Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: confirmColor),
             onPressed: () {
               Navigator.pop(dialogCtx);
 
               if (_currentInvoice.id != null) {
-                context.read<InvoiceBloc>().add(
-                  UpdateInvoiceStatusEvent(_currentInvoice.id!, newStatus),
-                );
+                if (isDraftDelete) {
+                  // حذف نهائي للفاتورة غير المعتمدة
+                  context.read<InvoiceBloc>().add(
+                    DeleteInvoiceEvent(_currentInvoice.id!),
+                  );
+                } else {
+                  // تغيير الحالة (اعتماد أو إلغاء ناعم للفاتورة المعتمدة)
+                  context.read<InvoiceBloc>().add(
+                    UpdateInvoiceStatusEvent(_currentInvoice.id!, newStatus),
+                  );
+                }
               }
             },
-            child: const Text('تأكيد', style: TextStyle(color: Colors.white)),
+            child: Text(
+              isDraftDelete ? 'حذف نهائي' : 'تأكيد',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -256,7 +280,14 @@ class _InvoiceDetailsPageState extends State<InvoiceDetailsPage> {
                       ),
                     ],
                   )
-                else if (!_isEditable)
+                else if (_isApproved && !isLoading)
+                  // زر إلغاء مرئي في شريط الأدوات للفواتير المعتمدة فقط
+                  IconButton(
+                    icon: const Icon(Icons.cancel, color: Colors.red),
+                    tooltip: 'إلغاء الفاتورة',
+                    onPressed: () => _changeStatus('CANCELLED'),
+                  )
+                else
                   const Padding(
                     padding: EdgeInsets.all(12.0),
                     child: Icon(Icons.lock, color: Colors.grey),
@@ -333,6 +364,36 @@ class _InvoiceDetailsPageState extends State<InvoiceDetailsPage> {
                                 label: const Text(
                                   'إلغاء الفاتورة',
                                   style: TextStyle(color: Colors.white),
+                                ),
+                                onPressed: () => _changeStatus('CANCELLED'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // زر الإلغاء الخاص بالفواتير المعتمدة (APPROVED)
+                        if (_isApproved) ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade700,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.cancel,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'إلغاء الفاتورة المعتمدة',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
                                 onPressed: () => _changeStatus('CANCELLED'),
                               ),

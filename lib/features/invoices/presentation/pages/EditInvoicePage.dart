@@ -107,12 +107,24 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
   }
 
   void _onCurrencyChanged(String? newCurrency) {
-    if (newCurrency != null) {
+    if (newCurrency != null && newCurrency != _currencyCode) {
+      final double oldRate = _exchangeRate > 0 ? _exchangeRate : 1.0;
       final double newRate = _currencyExchangeRates[newCurrency] ?? 1.0;
+      final double conversionRatio = oldRate / newRate;
+
       setState(() {
         _currencyCode = newCurrency;
         _exchangeRate = newRate;
         _exchangeRateController.text = newRate.toString();
+
+        // تحويل أسعار جميع العناصر تلقائياً بحسب الفرق بين العملة السابقة والجديدة
+        _items = _items.map((item) {
+          final newUnitPrice = item.unitPrice * conversionRatio;
+          return item.copyWith(
+            unitPrice: newUnitPrice,
+            lineTotal: newUnitPrice * item.quantity,
+          );
+        }).toList();
       });
     }
   }
@@ -271,10 +283,20 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                                 ),
                               ),
                               onChanged: (val) {
-                                final parsed = double.tryParse(val) ?? 1.0;
-                                setState(() {
-                                  _exchangeRate = parsed > 0 ? parsed : 1.0;
-                                });
+                                final parsed = double.tryParse(val);
+                                if (parsed != null && parsed > 0 && parsed != _exchangeRate) {
+                                  final double conversionRatio = _exchangeRate / parsed;
+                                  setState(() {
+                                    _exchangeRate = parsed;
+                                    _items = _items.map((item) {
+                                      final newUnitPrice = item.unitPrice * conversionRatio;
+                                      return item.copyWith(
+                                        unitPrice: newUnitPrice,
+                                        lineTotal: newUnitPrice * item.quantity,
+                                      );
+                                    }).toList();
+                                  });
+                                }
                               },
                             ),
                           ),

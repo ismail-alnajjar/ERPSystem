@@ -28,3 +28,9 @@ class ScanBarcodeEvent extends InvoiceEvent {
   final String barcode;
   ScanBarcodeEvent(this.barcode);
 }
+
+// حدث حذف الفاتورة نهائياً (DRAFT فقط)
+class DeleteInvoiceEvent extends InvoiceEvent {
+  final int invoiceId;
+  DeleteInvoiceEvent(this.invoiceId);
+}

@@ -8,8 +8,24 @@ import 'create_invoice_page.dart';
 import 'invoice_details_page.dart';
 import 'settings_page.dart';
 
-class InvoiceListPage extends StatelessWidget {
+class InvoiceListPage extends StatefulWidget {
   const InvoiceListPage({super.key});
+
+  @override
+  State<InvoiceListPage> createState() => _InvoiceListPageState();
+}
+
+class _InvoiceListPageState extends State<InvoiceListPage> {
+  @override
+  void initState() {
+    super.initState();
+    // جلب أحدث البيانات فور فتح الشاشة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<InvoiceBloc>().add(FetchInvoicesEvent());
+      }
+    });
+  }
 
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
@@ -91,16 +107,21 @@ class InvoiceListPage extends StatelessWidget {
           }
 
           if (state is InvoiceLoadedState) {
-            if (state.invoices.isEmpty) {
+            // إخفاء الفواتير الملغاة من العرض مع إبقائها في قاعدة البيانات
+            final visibleInvoices = state.invoices
+                .where((inv) => inv.status.toUpperCase() != 'CANCELLED')
+                .toList();
+
+            if (visibleInvoices.isEmpty) {
               return const Center(
                 child: Text('No invoices found. Tap + to create one.'),
               );
             }
 
             return ListView.builder(
-              itemCount: state.invoices.length,
+              itemCount: visibleInvoices.length,
               itemBuilder: (context, index) {
-                final invoice = state.invoices[index];
+                final invoice = visibleInvoices[index];
                 final statusColor = _getStatusColor(invoice.status);
 
                 return Card(
@@ -147,6 +168,11 @@ class InvoiceListPage extends StatelessWidget {
                 );
               },
             );
+          }
+
+          if (state is InvoiceInitialState) {
+            context.read<InvoiceBloc>().add(FetchInvoicesEvent());
+            return const Center(child: CircularProgressIndicator());
           }
 
           return const Center(child: Text('Press refresh to load invoices.'));

@@ -67,5 +67,19 @@ class InvoiceBloc extends Bloc<InvoiceEvent, InvoiceState> {
         emit(InvoiceErrorState('خطأ أثناء قراءة الباركوود'));
       }
     });
+
+    // 6. Handling Delete Invoice (Hard Delete - DRAFT only)
+    on<DeleteInvoiceEvent>((event, emit) async {
+      emit(InvoiceLoadingState());
+      try {
+        await repository.deleteInvoice(event.invoiceId);
+        emit(InvoiceOperationSuccessState('تم حذف الفاتورة بنجاح'));
+        // نجلب من SQLite فقط لتجنب إعادة الفاتورة من السيرفر
+        final localInvoices = await repository.getLocalInvoicesOnly();
+        emit(InvoiceLoadedState(localInvoices));
+      } catch (e) {
+        emit(InvoiceErrorState('فشل في حذف الفاتورة: ${e.toString()}'));
+      }
+    });
   }
 }

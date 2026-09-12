@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection_container.dart';
 import 'features/invoices/presentation/bloc/invoice_bloc.dart';
-import 'features/invoices/presentation/bloc/invoice_event.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +22,7 @@ class ERPApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => sl<InvoiceBloc>()..add(FetchInvoicesEvent()),
+      create: (context) => sl<InvoiceBloc>(),
       child: MaterialApp(
         title: 'ERP Invoicing System',
         debugShowCheckedModeBanner: false,
